@@ -97,6 +97,7 @@ firecrawl-py = "^0.0.16"
 json-repair = "^0.25.2"
 langchain-nvidia-ai-endpoints = "^0.1.2"
 langchain-google-calendar-tools = "^0.0.1"
+spider-client = "^0.0.27"
 langchain-milvus = "^0.1.1"
 crewai = {extras = ["tools"], version = "^0.36.0"}
 langwatch = "^0.1.10"
