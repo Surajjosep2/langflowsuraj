@@ -65,6 +65,17 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
   setFlowPool: (flowPool) => {
     set({ flowPool });
   },
+  updateFreezeStatus: (nodeIds: string[], freeze: boolean) => {
+    get().setNodes((oldNodes) => {
+      const newNodes = cloneDeep(oldNodes);
+      return newNodes.map((node) => {
+        if (nodeIds.includes(node.id)) {
+          (node.data as NodeDataType).node!.frozen = freeze;
+        }
+        return node;
+      });
+    });
+  },
   addDataToFlowPool: (data: VertexBuildTypeAPI, nodeId: string) => {
     let newFlowPool = cloneDeep({ ...get().flowPool });
     if (!newFlowPool[nodeId]) newFlowPool[nodeId] = [data];
@@ -522,10 +533,14 @@ const useFlowStore = create<FlowStoreType>((set, get) => ({
           get().verticesBuild!.verticesLayers[
             get().verticesBuild!.verticesLayers.length - 1
           ];
+
         nextVertices = nextVertices.filter(
-          (vertex) =>
-            !lastLayer.some((layer) => layer.id === vertex.id) &&
-            !lastLayer.some((layer) => layer.reference === vertex.reference),
+          (vertexElement) =>
+            !lastLayer.some(
+              (layerElement) =>
+                layerElement.id === vertexElement.id &&
+                layerElement.reference === vertexElement.reference,
+            ),
         );
         const newLayers = [
           ...get().verticesBuild!.verticesLayers,

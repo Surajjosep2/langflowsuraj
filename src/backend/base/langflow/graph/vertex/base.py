@@ -15,14 +15,18 @@ from langflow.graph.utils import UnbuiltObject, UnbuiltResult
 from langflow.interface.initialize import loading
 from langflow.interface.listing import lazy_load_dict
 from langflow.schema.artifact import ArtifactType
-from langflow.schema.schema import INPUT_FIELD_NAME, OutputLog, build_output_logs
+from langflow.schema.data import Data
+from langflow.schema.message import Message
+from langflow.schema.schema import INPUT_FIELD_NAME, OutputValue, build_output_logs
 from langflow.services.deps import get_storage_service
 from langflow.services.monitor.utils import log_transaction
+from langflow.services.tracing.schema import Log
 from langflow.utils.constants import DIRECT_TYPES
 from langflow.utils.schemas import ChatOutputResponse
 from langflow.utils.util import sync_to_async, unescape_string
 
 if TYPE_CHECKING:
+    from langflow.custom import Component
     from langflow.graph.edge.base import ContractEdge
     from langflow.graph.graph.base import Graph
 
@@ -80,7 +84,8 @@ class Vertex:
         self.layer = None
         self.result: Optional[ResultData] = None
         self.results: Dict[str, Any] = {}
-        self.outputs_logs: Dict[str, OutputLog] = {}
+        self.outputs_logs: Dict[str, OutputValue] = {}
+        self.logs: Dict[str, Log] = {}
         try:
             self.is_interface_component = self.vertex_type in InterfaceComponentTypes
         except ValueError:
@@ -435,16 +440,28 @@ class Vertex:
             List[str]: The extracted messages.
         """
         try:
+            text = artifacts["text"]
+            sender = artifacts.get("sender")
+            sender_name = artifacts.get("sender_name")
+            session_id = artifacts.get("session_id")
+            stream_url = artifacts.get("stream_url")
+            files = [{"path": file} if isinstance(file, str) else file for file in artifacts.get("files", [])]
+            component_id = self.id
+            _type = self.artifacts_type
+
+            if isinstance(sender_name, (Data, Message)):
+                sender_name = sender_name.get_text()
+
             messages = [
                 ChatOutputResponse(
-                    message=artifacts["text"],
-                    sender=artifacts.get("sender"),
-                    sender_name=artifacts.get("sender_name"),
-                    session_id=artifacts.get("session_id"),
-                    stream_url=artifacts.get("stream_url"),
-                    files=[{"path": file} if isinstance(file, str) else file for file in artifacts.get("files", [])],
-                    component_id=self.id,
-                    type=self.artifacts_type,
+                    message=text,
+                    sender=sender,
+                    sender_name=sender_name,
+                    session_id=session_id,
+                    stream_url=stream_url,
+                    files=files,
+                    component_id=component_id,
+                    type=_type,
                 ).model_dump(exclude_none=True)
             ]
         except KeyError:
@@ -466,6 +483,7 @@ class Vertex:
             results=result_dict,
             artifacts=artifacts,
             outputs=self.outputs_logs,
+            logs=self.logs,
             messages=messages,
             component_display_name=self.display_name,
             component_id=self.id,
@@ -629,13 +647,14 @@ class Vertex:
                 vertex=self,
             )
             self.outputs_logs = build_output_logs(self, result)
+
             self._update_built_object_and_artifacts(result)
         except Exception as exc:
             tb = traceback.format_exc()
             logger.exception(exc)
             raise ComponentBuildException(f"Error building Component {self.display_name}:\n\n{exc}", tb) from exc
 
-    def _update_built_object_and_artifacts(self, result):
+    def _update_built_object_and_artifacts(self, result: Any | tuple[Any, dict] | tuple["Component", Any, dict]):
         """
         Updates the built object and its artifacts.
         """
@@ -644,8 +663,11 @@ class Vertex:
                 self._built_object, self.artifacts = result
             elif len(result) == 3:
                 self._custom_component, self._built_object, self.artifacts = result
+                self.logs = self._custom_component._output_logs
                 self.artifacts_raw = self.artifacts.get("raw", None)
-                self.artifacts_type = self.artifacts.get("type", None) or ArtifactType.UNKNOWN.value
+                self.artifacts_type = {
+                    self.outputs[0]["name"]: self.artifacts.get("type", None) or ArtifactType.UNKNOWN.value
+                }
                 self.artifacts = {self.outputs[0]["name"]: self.artifacts}
         else:
             self._built_object = result

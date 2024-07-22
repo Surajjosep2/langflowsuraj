@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import CollectionCardComponent from "../../../../components/cardComponent";
 import CardsWrapComponent from "../../../../components/cardsWrapComponent";
 import IconComponent from "../../../../components/genericIconComponent";
 import PaginatorComponent from "../../../../components/paginatorComponent";
@@ -198,7 +197,10 @@ export default function ComponentsComponent({
         onFileDrop={handleFileDrop}
         dragMessage={`Drag your ${name} here`}
       >
-        <div className="flex h-full w-full flex-col justify-between">
+        <div
+          className="flex h-full w-full flex-col justify-between"
+          data-testid="cards-wrapper"
+        >
           <div className="flex w-full flex-col gap-4">
             {!isLoading && !isLoadingFolders && data?.length === 0 ? (
               <EmptyComponent />

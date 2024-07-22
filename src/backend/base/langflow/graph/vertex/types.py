@@ -47,6 +47,7 @@ class ComponentVertex(Vertex):
                 self._built_object, self.artifacts = result
             elif len(result) == 3:
                 self._custom_component, self._built_object, self.artifacts = result
+                self.logs = self._custom_component._output_logs
                 for key in self.artifacts:
                     self.artifacts_raw[key] = self.artifacts[key].get("raw", None)
                     self.artifacts_type[key] = self.artifacts[key].get("type", None) or ArtifactType.UNKNOWN.value
@@ -149,6 +150,7 @@ class ComponentVertex(Vertex):
             results=result_dict,
             artifacts=self.artifacts,
             outputs=self.outputs_logs,
+            logs=self.logs,
             messages=messages,
             component_display_name=self.display_name,
             component_id=self.id,
@@ -248,8 +250,13 @@ class InterfaceVertex(ComponentVertex):
                 message = str(text_output)
             # if the message is a generator or iterator
             # it means that it is a stream of messages
+
             else:
                 message = text_output
+
+            if hasattr(sender_name, "get_text"):
+                sender_name = sender_name.get_text()
+
             artifact_type = ArtifactType.STREAM if stream_url is not None else ArtifactType.OBJECT
             artifacts = ChatOutputResponse(
                 message=message,
@@ -335,10 +342,15 @@ class InterfaceVertex(ComponentVertex):
                 message = message.text if hasattr(message, "text") else message
                 yield message
                 complete_message += message
+
+        if hasattr(self.params.get("sender_name"), "get_text"):
+            sender_name = self.params.get("sender_name").get_text()
+        else:
+            sender_name = self.params.get("sender_name")
         self.artifacts = ChatOutputResponse(
             message=complete_message,
             sender=self.params.get("sender", ""),
-            sender_name=self.params.get("sender_name", ""),
+            sender_name=sender_name,
             files=[{"path": file} if isinstance(file, str) else file for file in self.params.get("files", [])],
             type=ArtifactType.OBJECT.value,
         ).model_dump()

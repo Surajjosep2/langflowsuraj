@@ -6,6 +6,14 @@ export const URLs = {
   FILES: `files`,
   VERSION: `version`,
   MESSAGES: `monitor/messages`,
+  STORE: `store`,
+  USERS: "users",
+  LOGOUT: `logout`,
+  LOGIN: `login`,
+  AUTOLOGIN: "auto_login",
+  REFRESH: "refresh",
+  BUILD: `build`,
+  CUSTOM_COMPONENT: `custom_component`,
 } as const;
 
 export function getURL(key: keyof typeof URLs, params: any = {}) {
