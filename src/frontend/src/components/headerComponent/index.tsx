@@ -17,6 +17,7 @@ import useAlertStore from "../../stores/alertStore";
 import { useDarkStore } from "../../stores/darkStore";
 import useFlowStore from "../../stores/flowStore";
 import useFlowsManagerStore from "../../stores/flowsManagerStore";
+import { useGridSnappingStore } from "../../stores/gridSnapping";
 import { useLocationStore } from "../../stores/locationStore";
 import { useStoreStore } from "../../stores/storeStore";
 import IconComponent, { ForwardedIconComponent } from "../genericIconComponent";
@@ -52,6 +53,11 @@ export default function Header(): JSX.Element {
   const dark = useDarkStore((state) => state.dark);
   const setDark = useDarkStore((state) => state.setDark);
   const stars = useDarkStore((state) => state.stars);
+
+  const gridSnapping = useGridSnappingStore((state) => state.gridSnapping);
+  const setGridSnapping = useGridSnappingStore(
+    (state) => state.setGridSnapping,
+  );
 
   const routeHistory = useLocationStore((state) => state.routeHistory);
 
@@ -194,6 +200,22 @@ export default function Header(): JSX.Element {
               <IconComponent name="MoonIcon" className="side-bar-button-size" />
             )}
           </button>
+
+          <button
+            className="extra-side-bar-save-disable"
+            onClick={() => {
+              setGridSnapping(!gridSnapping);
+            }}
+          >
+            {gridSnapping ? (
+              <IconComponent name="Grip" className="side-bar-button-size" />
+            ) : (
+              <IconComponent name="Hand" className="side-bar-button-size" />
+            )}
+          </button>
+
+          <Separator orientation="vertical" />
+
           <AlertDropdown>
             <div className="extra-side-bar-save-disable relative">
               {notificationCenter && (

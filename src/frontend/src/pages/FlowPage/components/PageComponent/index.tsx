@@ -29,6 +29,7 @@ import {
 import useAlertStore from "../../../../stores/alertStore";
 import useFlowStore from "../../../../stores/flowStore";
 import useFlowsManagerStore from "../../../../stores/flowsManagerStore";
+import { useGridSnappingStore } from "../../../../stores/gridSnapping";
 import { useShortcutsStore } from "../../../../stores/shortcuts";
 import { useTypesStore } from "../../../../stores/typesStore";
 import { APIClassType } from "../../../../types/api";
@@ -150,6 +151,8 @@ export default function Page({
   }
 
   const setNode = useFlowStore((state) => state.setNode);
+  const gridSnapping = useGridSnappingStore((state) => state.gridSnapping);
+
   useEffect(() => {
     const handleMouseMove = (event) => {
       position.current = { x: event.clientX, y: event.clientY };
@@ -484,6 +487,7 @@ export default function Page({
             onEdgesChange={onEdgesChange}
             onConnect={onConnectMod}
             disableKeyboardA11y={true}
+            W
             onInit={setReactFlowInstance}
             nodeTypes={nodeTypes}
             onEdgeUpdate={onEdgeUpdate}
@@ -503,6 +507,8 @@ export default function Page({
             className="theme-attribution"
             minZoom={0.01}
             maxZoom={8}
+            snapToGrid={gridSnapping}
+            snapGrid={[20, 20]}
             zoomOnScroll={!view}
             zoomOnPinch={!view}
             panOnDrag={!view}
