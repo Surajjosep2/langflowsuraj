@@ -1,4 +1,8 @@
-import { useGetTagsQuery } from "@/controllers/API/queries/store";
+import {
+  useGetTagsQuery,
+  usePatchUpdateFlowStore,
+  usePostComponent,
+} from "@/controllers/API/queries/store";
 import { cloneDeep } from "lodash";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import EditFlowSettings from "../../components/editFlowSettingsComponent";
@@ -62,6 +66,47 @@ export default function ShareModal({
   const saveFlow = useFlowsManagerStore((state) => state.saveFlow);
   const { data, isFetching } = useGetTagsQuery();
 
+  function successShare() {
+    const flow: FlowType = removeApiKeys({
+      id: component!.id,
+      data: component!.data,
+      description,
+      name,
+      last_tested_version: version,
+      is_component: is_component,
+    });
+    if (!is_component) {
+      saveFlow(flow!, true);
+    }
+    setSuccessData({
+      title: `${is_component ? "Component" : "Flow"} shared successfully!`,
+    });
+  }
+
+  const { mutate } = usePatchUpdateFlowStore({
+    onSuccess: () => {
+      successShare();
+    },
+    onError: (err) => {
+      setErrorData({
+        title: "Error sharing " + is_component ? "component" : "flow",
+        list: [err["response"]["data"]["detail"]],
+      });
+    },
+  });
+
+  const { mutate: postComponent } = usePostComponent({
+    onSuccess: () => {
+      successShare();
+    },
+    onError: (err) => {
+      setErrorData({
+        title: "Error sharing " + (is_component ? "component" : "flow"),
+        list: [err["response"]["data"]["detail"]],
+      });
+    },
+  });
+
   const [loadingNames, setLoadingNames] = useState(false);
 
   const name = component?.name ?? "";
@@ -103,38 +148,20 @@ export default function ShareModal({
       is_component: is_component,
     });
 
-    function successShare() {
-      if (!is_component) {
-        saveFlow(flow!, true);
-      }
-      setSuccessData({
-        title: `${is_component ? "Component" : "Flow"} shared successfully!`,
+    if (!update)
+      postComponent({
+        newFlow: flow!,
+        tags: getTagsIds(selectedTags, cloneDeep(data) ?? []),
+        publicFlow: sharePublic,
+      });
+    else {
+      mutate({
+        newFlow: flow!,
+        tags: getTagsIds(selectedTags, cloneDeep(data) ?? []),
+        publicFlow: sharePublic,
+        id: unavaliableNames.find((e) => e.name === name)!.id,
       });
     }
-
-    if (!update)
-      saveFlowStore(
-        flow!,
-        getTagsIds(selectedTags, cloneDeep(data) ?? []),
-        sharePublic,
-      ).then(successShare, (err) => {
-        setErrorData({
-          title: "Error sharing " + (is_component ? "component" : "flow"),
-          list: [err["response"]["data"]["detail"]],
-        });
-      });
-    else
-      updateFlowStore(
-        flow!,
-        getTagsIds(selectedTags, cloneDeep(data) ?? []),
-        sharePublic,
-        unavaliableNames.find((e) => e.name === name)!.id,
-      ).then(successShare, (err) => {
-        setErrorData({
-          title: "Error sharing " + is_component ? "component" : "flow",
-          list: [err["response"]["data"]["detail"]],
-        });
-      });
   };
 
   const handleUpdateComponent = () => {
