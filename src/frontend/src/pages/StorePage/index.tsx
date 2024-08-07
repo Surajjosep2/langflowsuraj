@@ -7,7 +7,10 @@ import ShadTooltip from "../../components/shadTooltipComponent";
 import { SkeletonCardComponent } from "../../components/skeletonCardComponent";
 import { Button } from "../../components/ui/button";
 
-import { useGetTagsQuery } from "@/controllers/API/queries/store";
+import {
+  useGetStoreComponentsQuery,
+  useGetTagsQuery,
+} from "@/controllers/API/queries/store";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import PaginatorComponent from "../../components/paginatorComponent";
 import { TagsSelector } from "../../components/tagsSelectorComponent";
@@ -50,7 +53,6 @@ export default function StorePage(): JSX.Element {
     (state) => state.setCurrentFlowId,
   );
   const currentFlowId = useFlowsManagerStore((state) => state.currentFlowId);
-  const [loading, setLoading] = useState(true);
   const { id } = useParams();
   const [filteredCategories, setFilterCategories] = useState<any[]>([]);
   const [inputText, setInputText] = useState<string>("");
@@ -63,6 +65,23 @@ export default function StorePage(): JSX.Element {
   const [searchNow, setSearchNow] = useState("");
   const [selectFilter, setSelectFilter] = useState("all");
   const { isFetching, data } = useGetTagsQuery();
+  const {
+    isFetching: isComponentsFetching,
+    data: componentsData,
+    refetch,
+  } = useGetStoreComponentsQuery({
+    component_id: id,
+    page: pageIndex,
+    limit: pageSize,
+    is_component:
+      tabActive === "All" ? null : tabActive === "Flows" ? false : true,
+    sort: pageOrder === "Popular" ? "-count(downloads)" : "name",
+    tags: filteredCategories,
+    liked: selectFilter === "likedbyme" && validApiKey ? true : null,
+    isPrivate: null,
+    search: inputText === "" ? null : inputText,
+    filterByUser: selectFilter === "createdbyme" && validApiKey ? true : null,
+  });
 
   const navigate = useNavigate();
 
@@ -73,7 +92,6 @@ export default function StorePage(): JSX.Element {
           title: APIKEY_ERROR_ALERT,
           list: [NOAPI_ERROR_ALERT],
         });
-        setLoading(false);
       } else if (!validApiKey) {
         setErrorData({
           title: APIKEY_ERROR_ALERT,
@@ -102,21 +120,8 @@ export default function StorePage(): JSX.Element {
 
   function handleGetComponents() {
     if (loadingApiKey) return;
-    setLoading(true);
-    getStoreComponents({
-      component_id: id,
-      page: pageIndex,
-      limit: pageSize,
-      is_component:
-        tabActive === "All" ? null : tabActive === "Flows" ? false : true,
-      sort: pageOrder === "Popular" ? "-count(downloads)" : "name",
-      tags: filteredCategories,
-      liked: selectFilter === "likedbyme" && validApiKey ? true : null,
-      isPrivate: null,
-      search: inputText === "" ? null : inputText,
-      filterByUser: selectFilter === "createdbyme" && validApiKey ? true : null,
-    })
-      .then((res) => {
+    refetch()
+      .then(({ data: res }) => {
         if (!res?.authorized && validApiKey === true) {
           setValidApiKey(false);
           setSelectFilter("all");
@@ -124,8 +129,6 @@ export default function StorePage(): JSX.Element {
           if (res?.authorized) {
             setValidApiKey(true);
           }
-          setLoading(false);
-          setSearchData(res?.results ?? []);
           setTotalRowsCount(
             filteredCategories?.length === 0
               ? Number(res?.count ?? 0)
@@ -137,9 +140,7 @@ export default function StorePage(): JSX.Element {
         if (err.response?.status === 403 || err.response?.status === 401) {
           setValidApiKey(false);
         } else {
-          setSearchData([]);
           setTotalRowsCount(0);
-          setLoading(false);
           setErrorData({
             title: COMPONENTS_ERROR_ALERT,
             list: [err["response"]["data"]["detail"]],
@@ -166,10 +167,10 @@ export default function StorePage(): JSX.Element {
       button={
         <Button
           data-testid="api-key-button-store"
-          disabled={loading}
+          disabled={isComponentsFetching}
           className={cn(
             `${!validApiKey ? "animate-pulse border-error" : ""}`,
-            loading ? "cursor-not-allowed" : "",
+            isComponentsFetching ? "cursor-not-allowed" : "",
           )}
           variant="primary"
           onClick={() => {
@@ -185,7 +186,7 @@ export default function StorePage(): JSX.Element {
         <div className="flex w-full flex-col gap-4 p-0">
           <div className="flex items-end gap-4">
             <InputSearchComponent
-              loading={loading}
+              loading={isComponentsFetching}
               divClasses="relative h-12 w-[40%]"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
@@ -201,7 +202,7 @@ export default function StorePage(): JSX.Element {
             <div className="ml-4 flex w-full gap-2 border-b border-border">
               <button
                 data-testid="all-button-store"
-                disabled={loading}
+                disabled={isComponentsFetching}
                 onClick={() => {
                   setTabActive("All");
                 }}
@@ -209,14 +210,14 @@ export default function StorePage(): JSX.Element {
                   (tabActive === "All"
                     ? "border-b-2 border-primary p-3"
                     : "border-b-2 border-transparent p-3 text-muted-foreground hover:text-primary") +
-                  (loading ? " cursor-not-allowed" : "")
+                  (isComponentsFetching ? " cursor-not-allowed" : "")
                 }
               >
                 All
               </button>
               <button
                 data-testid="flows-button-store"
-                disabled={loading}
+                disabled={isComponentsFetching}
                 onClick={() => {
                   resetPagination();
                   setTabActive("Flows");
@@ -225,14 +226,14 @@ export default function StorePage(): JSX.Element {
                   (tabActive === "Flows"
                     ? "border-b-2 border-primary p-3"
                     : "border-b-2 border-transparent p-3 text-muted-foreground hover:text-primary") +
-                  (loading ? " cursor-not-allowed" : "")
+                  (isComponentsFetching ? " cursor-not-allowed" : "")
                 }
               >
                 Flows
               </button>
               <button
                 data-testid="components-button-store"
-                disabled={loading}
+                disabled={isComponentsFetching}
                 onClick={() => {
                   resetPagination();
                   setTabActive("Components");
@@ -241,7 +242,7 @@ export default function StorePage(): JSX.Element {
                   (tabActive === "Components"
                     ? "border-b-2 border-primary p-3"
                     : "border-b-2 border-transparent p-3 text-muted-foreground hover:text-primary") +
-                  (loading ? " cursor-not-allowed" : "")
+                  (isComponentsFetching ? " cursor-not-allowed" : "")
                 }
               >
                 Components
@@ -256,7 +257,7 @@ export default function StorePage(): JSX.Element {
 
           <div className="flex items-center gap-2">
             <Select
-              disabled={loading}
+              disabled={isComponentsFetching}
               onValueChange={setSelectFilter}
               value={selectFilter}
             >
@@ -285,7 +286,7 @@ export default function StorePage(): JSX.Element {
               <TagsSelector
                 tags={data ?? []}
                 loadingTags={isFetching}
-                disabled={loading}
+                disabled={isComponentsFetching}
                 selectedTags={filteredCategories}
                 setSelectedTags={setFilterCategories}
               />
@@ -305,7 +306,8 @@ export default function StorePage(): JSX.Element {
           </div>
           <div className="flex items-end justify-between">
             <span className="px-0.5 text-sm text-muted-foreground">
-              {(!loading || searchData.length !== 0) && (
+              {(!isComponentsFetching ||
+                (componentsData?.results ?? []).length !== 0) && (
                 <>
                   {totalRowsCount} {totalRowsCount !== 1 ? "results" : "result"}
                 </>
@@ -313,7 +315,7 @@ export default function StorePage(): JSX.Element {
             </span>
 
             <Select
-              disabled={loading}
+              disabled={isComponentsFetching}
               onValueChange={(e) => {
                 setPageOrder(e);
               }}
@@ -330,15 +332,16 @@ export default function StorePage(): JSX.Element {
           </div>
 
           <div className="grid w-full gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {!loading || searchData.length !== 0 ? (
-              searchData.map((item) => {
+            {!isComponentsFetching ||
+            (componentsData?.results ?? []).length !== 0 ? (
+              (componentsData?.results ?? []).map((item) => {
                 return (
                   <>
                     <CollectionCardComponent
                       key={item.id}
                       data={item}
                       authorized={validApiKey}
-                      disabled={loading}
+                      disabled={isComponentsFetching}
                       playground={
                         item.last_tested_version?.includes("1.0.0") &&
                         !item.is_component
@@ -356,44 +359,46 @@ export default function StorePage(): JSX.Element {
             )}
           </div>
 
-          {!loading && searchData?.length === 0 && (
-            <div className="mt-6 flex w-full items-center justify-center text-center">
-              <div className="flex h-full w-full flex-col">
-                <div className="flex w-full flex-col gap-4">
-                  <div className="grid w-full gap-4">
-                    {selectFilter != "all" ? (
-                      <>
-                        You haven't{" "}
-                        {selectFilter === "createdbyme" ? "created" : "liked"}{" "}
-                        anything with the selected filters yet.
-                      </>
-                    ) : (
-                      <>
-                        There are no{" "}
-                        {tabActive == "Flows" ? "Flows" : "Components"} with the
-                        selected filters.
-                      </>
-                    )}
+          {!isComponentsFetching &&
+            (componentsData?.results ?? []).length === 0 && (
+              <div className="mt-6 flex w-full items-center justify-center text-center">
+                <div className="flex h-full w-full flex-col">
+                  <div className="flex w-full flex-col gap-4">
+                    <div className="grid w-full gap-4">
+                      {selectFilter != "all" ? (
+                        <>
+                          You haven't{" "}
+                          {selectFilter === "createdbyme" ? "created" : "liked"}{" "}
+                          anything with the selected filters yet.
+                        </>
+                      ) : (
+                        <>
+                          There are no{" "}
+                          {tabActive == "Flows" ? "Flows" : "Components"} with
+                          the selected filters.
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
+            )}
+        </div>
+        {!isComponentsFetching &&
+          (componentsData?.results ?? []).length > 0 && (
+            <div className="relative py-6">
+              <PaginatorComponent
+                storeComponent={true}
+                pageIndex={pageIndex}
+                pageSize={pageSize}
+                totalRowsCount={totalRowsCount}
+                paginate={(pageSize, pageIndex) => {
+                  setPageIndex(pageIndex);
+                  setPageSize(pageSize);
+                }}
+              ></PaginatorComponent>
             </div>
           )}
-        </div>
-        {!loading && searchData.length > 0 && (
-          <div className="relative py-6">
-            <PaginatorComponent
-              storeComponent={true}
-              pageIndex={pageIndex}
-              pageSize={pageSize}
-              totalRowsCount={totalRowsCount}
-              paginate={(pageSize, pageIndex) => {
-                setPageIndex(pageIndex);
-                setPageSize(pageSize);
-              }}
-            ></PaginatorComponent>
-          </div>
-        )}
       </div>
     </PageLayout>
   );
