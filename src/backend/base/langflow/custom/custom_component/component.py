@@ -48,6 +48,7 @@ class Component(CustomComponent):
         self._parameters = inputs or {}
         self._edges: list[EdgeData] = []
         self._components: list[Component] = []
+        self._call_inputs: dict[str, Any] = {}
         self.set_attributes(self._parameters)
         self._output_logs = {}
         config = config or {}
@@ -65,6 +66,9 @@ class Component(CustomComponent):
         # Set output types
         self._set_output_types()
         self.set_class_code()
+
+    def _set_call_inputs(self, key: str, value: Any):
+        self._call_inputs[key] = value
 
     def set_class_code(self):
         # Get the source code of the calling class
@@ -94,6 +98,7 @@ class Component(CustomComponent):
         """
         for key, value in kwargs.items():
             self._process_connection_or_parameter(key, value)
+
         return self
 
     def list_inputs(self):
@@ -263,6 +268,7 @@ class Component(CustomComponent):
             self._connect_to_component(key, value, _input)
         else:
             self._set_parameter_or_attribute(key, value)
+        self._set_call_inputs(key, value)
 
     def _get_or_create_input(self, key):
         try:
