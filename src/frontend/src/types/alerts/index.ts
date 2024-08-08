@@ -18,7 +18,20 @@ export type SuccessAlertType = {
 export type SingleAlertComponentType = {
   dropItem: AlertItemType;
   removeAlert: (index: string) => void;
+  isDropdown?: boolean;
 };
+
+export type RenderALertComponentType = {
+  alert: AlertItemType;
+}
+
+export type AlertComponentType = {
+  alert: AlertItemType;
+  setShow: (show: boolean | ((old: boolean) => boolean)) => void;
+  removeAlert: (id: string) => void;
+  isDropdown: boolean;
+}
+
 export type AlertDropdownType = {
   children: JSX.Element;
 };
